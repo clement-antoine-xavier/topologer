@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Router {
+  id        String   @id @default(uuid())
+  ipAddress String   @unique
+  hostname  String?
+  asn       Int?
+  // GeoIP data from geoip-lite
+  country   String?  // Country code
+  region    String?  // Region/state
+  city      String?  // City name
+  latitude  Float?   // GPS latitude
+  longitude Float?   // GPS longitude
+  timezone  String?  // Timezone
+  linksFrom Link[]   @relation("sourceLink")
+  linksTo   Link[]   @relation("destLink")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ipAddress])
+  @@index([country])
+  @@index([city])
+}
+
+model MeasurementSystem {
+  id          String   @id @default(uuid())
+  name        String
+  ipAddress   String   @unique
+  description String?
+  paths       Path[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ipAddress])
+}
+
+model Link {
+  id            String   @id @default(uuid())
+  sequence      Int // Link sequence number in the path
+  source        Router   @relation("sourceLink", fields: [sourceId], references: [id])
+  sourceId      String
+  destination   Router   @relation("destLink", fields: [destinationId], references: [id])
+  destinationId String
+  rtt           Float? // Round-trip time in ms
+  path          Path     @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  pathId        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([pathId])
+  @@index([sourceId])
+  @@index([destinationId])
+}
+
+model Path {
+  id                String            @id @default(uuid())
+  measurementSystem MeasurementSystem @relation(fields: [msId], references: [id])
+  msId              String
+  targetIp          String // Target IP address
+  targetHostname    String?
+  links             Link[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([msId])
+  @@index([targetIp])
+  @@index([createdAt])
+}
